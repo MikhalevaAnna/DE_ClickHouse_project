@@ -67,7 +67,7 @@ WITH
             user_id,
             MIN(event_time) AS first_day
         FROM user_events
-        WHERE event_type IN ('login', 'signup')
+        WHERE event_type IN ('login', 'signup', 'purchase')
         GROUP BY user_id
     ),
     retention_data AS (
@@ -82,7 +82,7 @@ WITH
 SELECT
     COUNT(*) AS total_users_day_0,
     SUM(rd_returned_in_7_days) AS returned_in_7_days,
-    ROUND(returned_in_7_days / total_users_day_0 * 100, 2) AS retention_7d_percent
+    IF(total_users_day_0 == 0, 0, ROUND(returned_in_7_days / total_users_day_0 * 100, 2)) AS retention_7d_percent
 FROM retention_data
 
 
