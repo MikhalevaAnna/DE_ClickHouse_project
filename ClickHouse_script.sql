@@ -74,9 +74,10 @@ WITH
         SELECT
             fv.user_id,
             fv.first_day,
-            MAX(If(ue.event_time BETWEEN fv.first_day + INTERVAL 1 DAY AND fv.first_day + INTERVAL 7 DAY, 1, 0)) AS rd_returned_in_7_days
+            MAX(IF(ue.event_time BETWEEN fv.first_day + INTERVAL 1 DAY AND fv.first_day + INTERVAL 7 DAY, 1, 0)) AS rd_returned_in_7_days
         FROM first_visits fv
-        LEFT JOIN user_events ue ON (fv.user_id = ue.user_id) AND (ue.event_type IN ('login', 'purchase'))
+        LEFT JOIN user_events ue ON fv.user_id = ue.user_id 
+        WHERE ue.event_type IN ('login', 'purchase')
         GROUP BY fv.user_id, fv.first_day
     )
 SELECT
