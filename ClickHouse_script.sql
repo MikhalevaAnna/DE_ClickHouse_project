@@ -1,3 +1,6 @@
+-- Удаляется Materialized View user_events_mv
+DROP VIEW IF EXISTS user_events_mv;
+
 -- Создается таблица событий пользователей user_events
 DROP TABLE IF EXISTS user_events;
 CREATE TABLE user_events (
@@ -15,23 +18,22 @@ DROP TABLE IF EXISTS user_events_agg;
 CREATE TABLE user_events_agg (
     event_date Date,
     event_type String,
-    users_unique AggregateFunction(uniq, UInt32),
-    spent_sum AggregateFunction(sum, UInt32),
-    actions_count AggregateFunction(count, UInt8)
+    users_unique_state AggregateFunction(uniq, UInt32),
+    spent_sum_state AggregateFunction(sum, UInt32),
+    actions_count_state AggregateFunction(count, UInt8)
 ) ENGINE = AggregatingMergeTree()
 ORDER BY (event_date, event_type)
 TTL event_date + INTERVAL 180 DAY;
 
 
 -- Создается Materialized View user_events_mv, с использованием state-функций
-DROP VIEW IF EXISTS user_events_mv;
 CREATE MATERIALIZED VIEW user_events_mv TO user_events_agg AS
 SELECT
     toDate(event_time) AS event_date,
     event_type,
-    uniqState(user_id) AS users_unique,
-    sumState(points_spent) AS spent_sum,
-    countState() AS actions_count
+    uniqState(user_id) AS users_unique_state,
+    sumState(points_spent) AS spent_sum_state,
+    countState() AS actions_count_state
 FROM user_events
 GROUP BY event_date, event_type;
 
@@ -91,11 +93,10 @@ FROM retention_data
 SELECT
 	event_date,
 	event_type,
-	uniqMerge(users_unique) AS unique_users,
-    sumMerge(spent_sum) AS total_spent,
-    countMerge(actions_count) AS total_actions
+	uniqMerge(users_unique_state) AS unique_users,
+    sumMerge(spent_sum_state) AS total_spent,
+    countMerge(actions_count_state) AS total
 FROM user_events_agg
-WHERE event_type IN ('login', 'signup', 'purchase')
 GROUP BY
     event_date, event_type
 ORDER BY
