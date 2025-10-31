@@ -36,17 +36,17 @@ TTL event_time + INTERVAL 30 DAY;
 CREATE TABLE user_events_agg (
     event_date Date,
     event_type String,
-    users_unique AggregateFunction(uniq, UInt32),
-    spent_sum AggregateFunction(sum, UInt32),
-    actions_count AggregateFunction(count, UInt8)
+    users_unique_state AggregateFunction(uniq, UInt32),
+    spent_sum_state AggregateFunction(sum, UInt32),
+    actions_count_state AggregateFunction(count, UInt8)
 ) ENGINE = AggregatingMergeTree()
 ORDER BY (event_date, event_type)
 TTL event_date + INTERVAL 180 DAY;
 ```
 
-- `users_unique` - уникальные пользователи по `event_type` и `event_date`,
-- `spent_sum` - сумма потраченных баллов,
-- `actions_count` - количество действий пользователей.
+- `users_unique_state` - уникальные пользователи по `event_type` и `event_date`,
+- `spent_sum_state` - сумма потраченных баллов,
+- `actions_count_state` - количество действий пользователей.
 
 3) Создано **Materialized View**, которое будет обновлять агрегированную таблицу `user_events_agg` и </br>использует функции: `sumState`, `uniqState`, `countState`; </br>
 при вставке данных в таблицу сырых логов событий `user_events`:
@@ -55,9 +55,9 @@ CREATE MATERIALIZED VIEW user_events_mv TO user_events_agg AS
 SELECT
     toDate(event_time) AS event_date,
     event_type,
-    uniqState(user_id) AS users_unique,
-    sumState(points_spent) AS spent_sum,
-    countState() AS actions_count
+    uniqState(user_id) AS users_unique_state,
+    sumState(points_spent) AS spent_sum_state,
+    countState() AS actions_count_state
 FROM user_events
 GROUP BY event_date, event_type;
 ```
@@ -70,16 +70,15 @@ GROUP BY event_date, event_type;
 |---------------------|----------------------|------------------------|
 |                   6 |	                   4 |	                66.67 | 
 
-6) Создан запрос с группировками по быстрой аналитике по дням с использованием функций: `uniqMerge`, `sumMerge`, `countMerge` для значимых событий:
+6) Создан запрос с группировками по быстрой аналитике по дням с использованием функций: `uniqMerge`, `sumMerge`, `countMerge`:
 ```
 SELECT
 	event_date,
 	event_type,
-	uniqMerge(users_unique) AS unique_users,
-    sumMerge(spent_sum) AS total_spent,
-    countMerge(actions_count) AS total_actions
+	uniqMerge(users_unique_state) AS unique_users,
+    sumMerge(spent_sum_state) AS total_spent,
+    countMerge(actions_count_state) AS total_actions
 FROM user_events_agg
-WHERE event_type IN ('login', 'signup', 'purchase')
 GROUP BY
     event_date, event_type
 ORDER BY
