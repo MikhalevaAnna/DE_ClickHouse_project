@@ -95,7 +95,7 @@ SELECT
 	event_type,
 	uniqMerge(users_unique_state) AS unique_users,
     sumMerge(spent_sum_state) AS total_spent,
-    countMerge(actions_count_state) AS total
+    countMerge(actions_count_state) AS total_actions
 FROM user_events_agg
 GROUP BY
     event_date, event_type
